@@ -1,0 +1,35 @@
+#!/bin/csh
+
+# build lists
+echo "aid" > id.ctrls
+echo "aid" > id.cases
+cat list.ctrls >> id.ctrls
+cat list.cases >> id.cases
+
+# compare numbers
+set n = `wc id.ctrls | awk '{print $1;}'`
+set m = `wc id.cases | awk '{print $1;}'`
+echo "COMPARING mirrors npair=$n"
+if( "$n" != "$m" ) then
+  echo "ncases=$m nctrls=$m => do not match"
+else
+  # stats: cases vs ctrls
+  set name1 = "Unruptured"
+  set name2 = "Ruptured"
+  # geometric variables
+  set title = "geometry"
+  \cp -f ignore.geom ignore.csv
+  set filen = `echo $name1 $name2 geom | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
+  mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
+  mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
+  # hemodynamic variables
+  set title = "hemodynamics"
+  \cp -f ignore.hemo ignore.csv
+  set filen = `echo $name1 $name2 hemo | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
+  mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
+  mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
+  # mv results to directory
+  if( ! -e results ) mkdir results
+  \mv -f *tst* *fit* results
+endif
+

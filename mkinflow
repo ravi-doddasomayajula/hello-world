@@ -1,0 +1,37 @@
+#!/bin/csh
+
+set pdb = "/odin1/jcebral/aneuDB"
+echo -n "aid " 
+echo -n "Inflow "
+echo -n "WSSnear "
+echo
+
+set run = ""
+if( $?RUN ) then
+  if( "$RUN" != "") then
+    set run = "$RUN"
+  endif
+endif
+if( "$run" == "") then
+  set run = "nwtn.hr060"
+endif
+
+foreach mdl ($argv)
+  set db = `echo $mdl | awk -F'.' '{ \
+       if($1~/medellin/)         printf("db.medellin");\
+  else if($1~/sinai/)            printf("db.sinai");   \
+  else if($1~/inova/ && $2<1000) printf("db.ifh");     \
+  else if($1~/inova/ && $2>999)  printf("db.inova");   \
+  else                           printf("db.grow");    \
+  }'`
+  if( -e $pdb/$db/$mdl/chr ) then
+    echo -n "$mdl "
+    set file = "$pdb/$db/$mdl/msr/nck/$run/mesr.table.neck.gz"
+    set qin = `zgrep 'flow_in' $file | awk '{print $4;}'`
+    set qpr = `zgrep '%inflow' $file | awk '{print $4;}'`
+    echo -n $qin $qpr | awk '{printf("%g ",$1/(0.01*$2));}'
+    set file = "$pdb/$db/$mdl/msr/frc/$run/mesr.table.wss.vessel_near.gz"
+    echo -n `zcat $file | grep "mean" | awk 'NR>1{printf("%g",$4);}'`
+    echo 
+  endif
+end

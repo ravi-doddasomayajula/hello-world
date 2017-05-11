@@ -1,0 +1,20 @@
+#!/bin/csh
+
+# build lists
+echo "aid" > id.ctrls
+echo "aid" > id.cases
+cat list.ctrls >> id.ctrls
+cat list.cases >> id.cases
+
+# get significant variables
+\grep '&' results/*txt | awk '{print $2;}' | sort | uniq | awk '{if(NR>1)printf(",");printf("%s",$1);}END{printf("\n");}' > vars.csv
+set n = `wc vars.csv | awk '{print $2;}'`
+# multivariate analysis
+if( $n > 0 ) then
+  echo "MULTIVARIATE ANALYSIS: " >& results/multivar.txt
+  mkmult.r >>& results/multivar.txt
+  mv -f roc*.png results
+else 
+  echo "  no significant variables => skip"
+endif
+

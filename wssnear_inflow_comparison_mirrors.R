@@ -1,0 +1,16 @@
+# comparison of WSSnear and Inflows for mirrors 
+
+setwd("/odin1/rdoddaso/aneuDB/multi_analysis/mirrors")
+mirror.R <- read.csv("mirrors.R.csv",header = F)
+mirror.U <- read.csv("mirrors.U.csv",header = F)
+View(mirror.R)
+View(mirror.U)
+mirror.hemo <- read.csv("table_hemo.csv")
+View(mirror.hemo)
+dat <- cbind.data.frame(mirror.hemo$aid, mirror.hemo$Inflow)
+View(dat)
+a <- merge(dat, mirror.R, by.x = "mirror.hemo$aid", by.y = "V1", all = FALSE)
+View(a)
+b <- merge(dat, mirror.U, by.x = "mirror.hemo$aid", by.y = "V1", all = FALSE)
+View(b)
+wilcox.test(a[[2]],b[[2]], paired = TRUE, "two.sided")

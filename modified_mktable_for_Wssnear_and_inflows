@@ -1,0 +1,35 @@
+#!/bin/csh
+
+#modified to give inflows and wss
+# DB path & list
+set dir = `pwd`
+set pdb = "/odin1/jcebral/aneuDB"
+set ldb = "db.medellin db.sinai db.ifh db.inova db.grow"
+
+# gather all ids from pair lists
+awk '{for(i=1;i<=NF;i++)printf("%s\n",$i);}' list.ctrls list.cases | sort | uniq > list.ids
+awk -F'.' '{if($1~/medellin/)        printf("db.medellin %s.%s.%s\n",$1,$2,$3); \
+      else if($1~/sinai/)            printf("db.sinai %s.%s.%s\n",$1,$2,$3); \
+      else if($1~/inova/ && $2<1000) printf("db.ifh %s.%s.%s\n",$1,$2,$3); \
+      else if($1~/inova/ && $2>999)  printf("db.inova %s.%s.%s\n",$1,$2,$3); \
+      else                           printf("db.grow %s.%s.%s\n",$1,$2,$3); \
+      }' list.ids > list.dbids
+
+# create table by looping over databases
+@ i = 1
+foreach db ($ldb)
+  \grep "$db" list.dbids | awk '{print $2;}' > list.$db
+  cd $pdb/$db
+#  adb_mk_table `cat $dir/list.$db` > $dir/table.hemo.$db
+#  /magnus1/rdoddaso/Desktop/courses/dat.multi/ipsilat/adb_mk_table1 `cat $dir/list.$db` > $dir/table.hemo.$db
+  /magnus1/rdoddaso/Desktop/courses/dat.multi/ipsilat/mkinflow `cat $dir/list.$db` > $dir/infl_table.$db 
+  cd -
+  if( $i == 1 ) then
+    cat infl_table.$db >> new_inflow_table.csv
+  else
+    tail -n +2 infl_table.$db >> new_inflow_table.csv
+  endif
+  @ i = $i + 1
+end
+
+
