@@ -19,8 +19,9 @@ if( length(args)==0 ) {
 # read ids of groups 1 and 2 & table
 id1 <- read.csv("id.ctrls")
 id2 <- read.csv("id.cases")
-dat <- read.csv("table1.csv")
-ign <- read.csv("ignore.csv")
+dat <- read.csv("table1.csv", sep = ",")
+ign <- read.csv("ignore.csv", sep = ",")
+dat$X <- NULL
 
 # get subtables for groups 1 and 2
 d1 <- merge(id1,dat,by="aid",sort=FALSE)

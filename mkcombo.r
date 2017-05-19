@@ -10,8 +10,8 @@ sumP    <- function(x) {
   else {pnorm(sum(x),n/2,sqrt(n/12),lower=TRUE)}}
 
 # read ratios & pvalues
-rat <- read.csv("ratios.csv")
-pvl <- read.csv("pvalues.csv")
+rat <- read.csv("ratios.csv", sep = ",")
+pvl <- read.csv("pvalues.csv", sep = ",")
 num <- ncol(pvl)
 
 # calc combined pvalues & mean/stdev of ratios

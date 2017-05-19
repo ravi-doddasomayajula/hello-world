@@ -1,35 +1,115 @@
 #!/bin/csh
 
-# build lists
-echo "aid" > id.ctrls
-echo "aid" > id.cases
-cat list.ctrls >> id.ctrls
-cat list.cases >> id.cases
+# loop over random pairing passes
+@ num = 3
 
-# compare numbers
-set n = `wc id.ctrls | awk '{print $1;}'`
-set m = `wc id.cases | awk '{print $1;}'`
-echo "COMPARING mirrors npair=$n"
-if( "$n" != "$m" ) then
-  echo "ncases=$m nctrls=$m => do not match"
-else
-  # stats: cases vs ctrls
-  set name1 = "Unruptured"
-  set name2 = "Ruptured"
-  # geometric variables
-  set title = "geometry"
-  \cp -f ignore.geom ignore.csv
-  set filen = `echo $name1 $name2 geom | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
-  mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
-  mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
-  # hemodynamic variables
-  set title = "hemodynamics"
-  \cp -f ignore.hemo ignore.csv
-  set filen = `echo $name1 $name2 hemo | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
-  mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
-  mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
-  # mv results to directory
-  if( ! -e results ) mkdir results
-  \mv -f *tst* *fit* results
+if(1) then
+
+@ i = 1
+while( $i <= $num )
+  set ii = `echo $i | awk '{printf("%03d",$1);}'`
+  echo "PASS=$ii"
+  # build lists
+  echo "aid" > id.ctrls
+  echo "aid" > id.cases
+  sort -R list.ctrls | head -n5 >> id.ctrls 
+  cat list.cases >> id.cases
+  
+  # 1--univariate analysis
+  set n = `wc id.ctrls | awk '{print $1;}'`
+  set m = `wc id.cases | awk '{print $1;}'`
+  echo "  UNIVARIATE ANALYSIS npair=$n"
+  if( "$n" != "$m" ) then
+    echo "  ncases=$m nctrls=$m do not match => skip"
+  else
+    # stats: cases vs ctrls
+    set name1 = "Unruptured"
+    set name2 = "Ruptured"
+    # geometric variables
+    echo "    geometry"
+    set title = "geometry"
+    \cp -f ignore.geom ignore.csv
+    set filen = `echo $name1 $name2 geom | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
+    ./mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
+    ./mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
+    # hemodynamic variables
+    echo "    hemodynamics"
+    set title = "hemodynamics"
+    \cp -f ignore.hemo ignore.csv
+    set filen = `echo $name1 $name2 hemo | awk '{printf("%s_vs_%s_%s",$1,$2,$3);}'`
+    ./mktest.r $title $name1 $name2 $filen.tst >& $filen.tst.txt
+    ./mkglm.r $name1 $name2 $filen.fit >& $filen.fit.txt
+    # mv results to directory
+    if( ! -e results.$ii ) mkdir results.$ii
+    \mv -f *tst* *fit* results.$ii
+  endif
+
+  # 2--multivariate analysis
+  #echo "  MULTIVARIATE ANALYSIS"
+  # get significant variables
+  #\grep '&' results.$ii/*txt | awk '{print $2;}' | sort | uniq | awk '{if(NR>1)printf(",");printf("%s",$1);}END{printf("\n");}' > vars.csv
+  #set n = `wc vars.csv | awk '{print $2;}'`
+  # multivariate analysis
+  #if( $n > 0 ) then
+  #  echo "    num signif vars=$n"
+  #  echo "MULTIVARIATE ANALYSIS: " >& results.$ii/multivar.txt
+  #  ./mkmult.r >>& results.$ii/multivar.txt
+  #  mv -f roc*.png results.$ii
+  #else 
+  #  echo "  no significant variables => skip"
+  #endif
+
+  # 3--save lists
+  cp id.ctrls id.cases results.$ii
+
+  @ i = $i + 1
+end
+
 endif
 
+# 4--combine p-values for all variables
+set lvrs = `head -1 table1.csv`
+echo "COMBINED P-VALUES"
+# loop over variables
+@ f = 1
+foreach var ($lvrs)
+  echo "  $var"
+  @ i = 1
+  echo "$var" > pvals.csv
+  echo "$var" > tmp.vrat
+  # loop over results
+  while( $i <= $num )
+    set ii = `echo $i | awk '{printf("%03d",$1);}'`
+    # gather pvalues & ratios
+    awk -F',' -v v=$var '{if($2~v && length($2)-2==length(v))print $14;}' results.$ii/*tst.csv >> pvals.csv
+    awk -F',' -v v=$var '{if($2~v && length($2)-2==length(v))print $13;}' results.$ii/*tst.csv >> tmp.vrat
+    @ i = $i + 1
+  end
+  # calc combined pvalues
+  #mkcombp.r >>& pvals.combined.txt
+  # build table with ratios
+  awk '{print NR,$1;}' tmp.vrat  > tmp.rats
+  awk '{print NR,$1;}' pvals.csv > tmp.pvls
+  if( $f > 0 ) then
+    \mv -f tmp.rats tmp.ratios
+    \mv -f tmp.pvls tmp.pvals
+    @ f = 0
+  else
+    join tmp.ratios tmp.rats > tmp.join
+    \mv -f tmp.join tmp.ratios
+    join tmp.pvals  tmp.pvls > tmp.join
+    \mv -f tmp.join tmp.pvals
+  endif
+end
+
+# plot ratios & stdev
+sed "s| |,|g" tmp.ratios > ratios.csv
+sed "s| |,|g" tmp.pvals  > pvalues.csv
+./mkcombo.r >& pvals.combined.txt
+
+# move to results dir
+if( ! -e results.all ) mkdir results.all
+\mv -f pvals.combined.txt pvals.csv pvalues.csv ratios.csv ratios.png results.all
+
+# clean
+\rm -f tmp.*

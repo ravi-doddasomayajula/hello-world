@@ -21,8 +21,9 @@ if( length(args)!=3 ) {
 # read ids of groups 1 and 2 & table
 id1 <- read.csv("id.ctrls")
 id2 <- read.csv("id.cases")
-dat <- read.csv("table1.csv")
-ign <- read.csv("ignore.csv")
+dat <- read.csv("table1.csv", sep = ",")
+ign <- read.csv("ignore.csv", sep = ",")
+dat$X <- NULL
 
 # create class=0 for group 1 & class=1 for group 2
 cls1 <- id1
